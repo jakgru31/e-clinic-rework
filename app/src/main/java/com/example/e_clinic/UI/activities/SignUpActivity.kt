@@ -26,6 +26,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import com.example.e_clinic.Firebase.FirestoreDatabase.collections.User
 import com.example.e_clinic.R
 import com.example.e_clinic.UI.theme.EClinicTheme
@@ -53,6 +58,7 @@ class SignUpActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegistrationScreen(onSignUpSuccess: () -> Unit = {}, preFilledEmail: String? = null) {
     val auth = FirebaseAuth.getInstance()
@@ -193,24 +199,26 @@ fun RegistrationScreen(onSignUpSuccess: () -> Unit = {}, preFilledEmail: String?
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.background
-            ),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Card(
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .widthIn(max = 420.dp)
+                .widthIn(max = 480.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(28.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.Center,
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -220,119 +228,152 @@ fun RegistrationScreen(onSignUpSuccess: () -> Unit = {}, preFilledEmail: String?
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     ),
-                    modifier = Modifier.padding(bottom = 18.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
 
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("First Name") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = surname,
                     onValueChange = { surname = it },
                     label = { Text("Last Name") },
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text("Phone Number") },
+                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = address,
                     onValueChange = { address = it },
                     label = { Text("Address") },
-                    modifier = Modifier.fillMaxWidth()
+                    leadingIcon = { Icon(Icons.Default.Home, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = { expanded = true },
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            text = if (selectedGender.isEmpty()) "Gender" else selectedGender,
-                            color = if (selectedGender.isEmpty()) Color.Gray else Color.Unspecified
+                        OutlinedTextField(
+                            value = if (selectedGender.isEmpty()) "Gender" else selectedGender,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Gender") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
                         )
-                    }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        listOf("Male", "Female").forEach { gender ->
-                            DropdownMenuItem(
-                                text = { Text(gender) },
-                                onClick = {
-                                    selectedGender = gender
-                                    expanded = false
-                                }
-                            )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            listOf("Male", "Female").forEach { gender ->
+                                DropdownMenuItem(
+                                    text = { Text(gender) },
+                                    onClick = {
+                                        selectedGender = gender
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                    Button(
-                        onClick = { datePickerDialog.show() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = if (dob == "Select Date of Birth") "Date of Birth" else dob,
-                            color = if (dob == "Select Date of Birth") Color.Gray else Color.Unspecified
-                        )
-                    }
+
+                    OutlinedTextField(
+                        value = if (dob == "Select Date of Birth") "" else dob,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Date of Birth") },
+                        placeholder = { Text("DD/MM/YYYY") },
+                        trailingIcon = {
+                            IconButton(onClick = { datePickerDialog.show() }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Pick Date")
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { datePickerDialog.show() }
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
                     label = { Text("Confirm Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Button(
                     onClick = { registerUser() },
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Register", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 IconButton(
                     onClick = { signUpWithGoogle() },

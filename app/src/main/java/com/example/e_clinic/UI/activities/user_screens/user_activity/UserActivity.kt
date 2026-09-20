@@ -51,6 +51,11 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.e_clinic.UI.activities.chat.ChatListScreen
+import com.example.e_clinic.UI.activities.chat.ChatScreen
 
 //import com.example.e_clinic.ui.activities.doctor_screens.doctor_activity.ServiceListItem
 
@@ -248,17 +253,49 @@ fun MainScreen() {
 fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifier) {
     NavHost(navController = navController, startDestination = "home", modifier = modifier) {
 
-        composable("home") { HomeScreen() }
+        composable("home") { HomeScreen(navController = navController) }
 
         composable("services") {
             ServicesScreen(navController = navController)
         }
 
-        composable("chat") { ChatPlaceholderScreen() }
+        composable("chat") {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            ChatListScreen(
+                currentUserId = currentUserId,
+                isDoctor = false,
+                onOpenChat = { chatId, otherUserId, otherUserName, _ ->
+                    val encodedName = Uri.encode(otherUserName)
+                    navController.navigate("chat_room/$chatId/$otherUserId/$encodedName")
+                }
+            )
+        }
+
+        composable(
+            route = "chat_room/{chatId}/{otherUserId}/{otherUserName}",
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType },
+                navArgument("otherUserId") { type = NavType.StringType },
+                navArgument("otherUserName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+            val rawName = backStackEntry.arguments?.getString("otherUserName") ?: ""
+            val otherUserName = Uri.decode(rawName)
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            ChatScreen(
+                chatId = chatId,
+                currentUserId = currentUserId,
+                otherUserId = otherUserId,
+                otherUserName = otherUserName,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
         composable("appointments") {
             val userId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            AppointmentsScreen(userId = userId) {
+            AppointmentsScreen(userId = userId, navController = navController) {
                 // Handle optional post-appointment logic here
             }
         }
@@ -275,7 +312,7 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
 
         composable("appointment_screen/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: "unknown"
-            AppointmentsScreen(userId = userId) {
+            AppointmentsScreen(userId = userId, navController = navController) {
                 navController.navigate("home")
             }
         }

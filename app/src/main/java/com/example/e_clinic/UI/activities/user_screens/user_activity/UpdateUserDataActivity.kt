@@ -1,26 +1,34 @@
 package com.example.e_clinic.UI.activities.user_screens.user_activity
 
-
 import android.app.DatePickerDialog
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.e_clinic.Firebase.FirestoreDatabase.collections.User
+import androidx.compose.ui.unit.sp
 import com.example.e_clinic.UI.theme.EClinicTheme
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
 import java.util.*
 
 class UpdateUserDataActivity : ComponentActivity() {
@@ -28,9 +36,9 @@ class UpdateUserDataActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             EClinicTheme {
-            UpdateUserDataScreen(
-                onFinish = { finish() }
-            )
+                UpdateUserDataScreen(
+                    onFinish = { finish() }
+                )
             }
         }
     }
@@ -44,6 +52,7 @@ fun UpdateUserDataScreen(onFinish: () -> Unit) {
     val context = LocalContext.current
 
     var loading by remember { mutableStateOf(true) }
+    var isSaving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf(false) }
 
@@ -58,9 +67,19 @@ fun UpdateUserDataScreen(onFinish: () -> Unit) {
     val genderOptions = listOf("Male", "Female")
     var genderExpanded by remember { mutableStateOf(false) }
     val calendar = remember { Calendar.getInstance() }
-    var showDatePicker by remember { mutableStateOf(false) }
 
-    // Load user data
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                dob = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+    }
+
     LaunchedEffect(userId) {
         loading = true
         error = null
@@ -74,7 +93,7 @@ fun UpdateUserDataScreen(onFinish: () -> Unit) {
             email = doc.getString("email") ?: ""
             address = doc.getString("address") ?: ""
             dob = timestamp?.toDate()?.let {
-                java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
+                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(it)
             } ?: ""
         } catch (e: Exception) {
             error = e.message
@@ -82,140 +101,260 @@ fun UpdateUserDataScreen(onFinish: () -> Unit) {
         loading = false
     }
 
-    if (loading) {
-        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-    if (error != null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            Text("Error: $error")
-        }
-        return
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .widthIn(max = 400.dp) // Limit max width for centering
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Edit Your Data",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            TextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            TextField(value = surname, onValueChange = { surname = it }, label = { Text("Surname") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            ExposedDropdownMenuBox(
-                expanded = genderExpanded,
-                onExpandedChange = { genderExpanded = !genderExpanded }
-            ) {
-                TextField(
-                    value = gender,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Gender") },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = genderExpanded,
-                    onDismissRequest = { genderExpanded = false }
-                ) {
-                    genderOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                gender = option
-                                genderExpanded = false
-                            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Edit Profile",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onFinish) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
                         )
                     }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            TextField(value = phone, onValueChange = { phone = it }, label = { Text("Phone") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            TextField(value = email, onValueChange = {}, readOnly = true, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            TextField(value = address, onValueChange = { address = it }, label = { Text("Address") }, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            TextField(
-                value = dob,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Date of Birth") },
-                modifier = Modifier.fillMaxWidth()
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-            Button(
-                onClick = { showDatePicker = true },
-                modifier = Modifier.padding(top = 8.dp)
+        }
+    ) { innerPadding ->
+        if (loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
             ) {
-                Text("Pick Date")
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-            if (showDatePicker) {
-                LaunchedEffect(showDatePicker) {
-                    val parts = dob.split("-")
-                    val year = parts.getOrNull(0)?.toIntOrNull() ?: calendar.get(Calendar.YEAR)
-                    val month = parts.getOrNull(1)?.toIntOrNull()?.minus(1) ?: calendar.get(Calendar.MONTH)
-                    val day = parts.getOrNull(2)?.toIntOrNull() ?: calendar.get(Calendar.DAY_OF_MONTH)
-                    DatePickerDialog(
-                        context,
-                        { _, y, m, d ->
-                            dob = "%04d-%02d-%02d".format(y, m + 1, d)
-                            showDatePicker = false
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 540.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "Personal Information",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("First Name") },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = surname,
+                        onValueChange = { surname = it },
+                        label = { Text("Last Name") },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    ExposedDropdownMenuBox(
+                        expanded = genderExpanded,
+                        onExpandedChange = { genderExpanded = !genderExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = if (gender.isEmpty()) "Select Gender" else gender,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Gender") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = genderExpanded,
+                            onDismissRequest = { genderExpanded = false }
+                        ) {
+                            genderOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        gender = option
+                                        genderExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = dob,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Date of Birth") },
+                        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                        trailingIcon = {
+                            IconButton(onClick = { datePickerDialog.show() }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Pick Date")
+                            }
                         },
-                        year, month, day
-                    ).apply {
-                        setOnDismissListener { showDatePicker = false }
-                        show()
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { datePickerDialog.show() }
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Contact Details",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Email (read-only)") },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("Phone Number") },
+                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        label = { Text("Address") },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (success) {
+                        Text(
+                            text = "Changes saved successfully!",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    if (error != null) {
+                        Text(
+                            text = "Error: $error",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            isSaving = true
+                            success = false
+                            error = null
+                            val timestamp = try {
+                                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val date = sdf.parse(dob)
+                                if (date != null) Timestamp(date) else null
+                            } catch (_: Exception) { null }
+
+                            val updateMap = mutableMapOf<String, Any>(
+                                "name" to name,
+                                "surname" to surname,
+                                "gender" to gender,
+                                "phone" to phone,
+                                "email" to email,
+                                "address" to address
+                            )
+                            if (timestamp != null) updateMap["dob"] = timestamp
+
+                            firestore.collection("users").document(userId).update(updateMap)
+                                .addOnSuccessListener {
+                                    isSaving = false
+                                    success = true
+                                    onFinish()
+                                }
+                                .addOnFailureListener {
+                                    isSaving = false
+                                    error = it.message
+                                }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Save Changes",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
-            }
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    val timestamp = try {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        val date = sdf.parse(dob)
-                        if (date != null) com.google.firebase.Timestamp(date) else null
-                    } catch (_: Exception) { null }
-                    val updateMap = mutableMapOf<String, Any>(
-                        "name" to name,
-                        "surname" to surname,
-                        "gender" to gender,
-                        "phone" to phone,
-                        "email" to email,
-                        "address" to address
-                    )
-                    if (timestamp != null) updateMap["dob"] = timestamp
-                    firestore.collection("users").document(userId).update(updateMap)
-                        .addOnSuccessListener {
-                            success = true
-                            onFinish()
-                        }
-                        .addOnFailureListener { error = it.message }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save Changes")
-            }
-            if (success) {
-                Text("Changes saved!", color = MaterialTheme.colorScheme.primary)
             }
         }
     }

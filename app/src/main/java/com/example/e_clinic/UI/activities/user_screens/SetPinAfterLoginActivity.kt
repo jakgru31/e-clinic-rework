@@ -97,6 +97,7 @@ fun SetPinAfterLoginScreen() {
                                 if (confirmPin.length == 4) {
                                     if (pin == confirmPin) {
                                         pinManager.savePin(pin)
+                                        pinManager.saveUserRole("user")
                                         val intent = Intent(context, PinEntryActivity::class.java)
                                         context.startActivity(intent)
                                         (context as Activity).finish()
@@ -126,6 +127,7 @@ fun SetPinAfterLoginScreen() {
                         if (confirmPin.length == 4) {
                             if (pin == confirmPin) {
                                 pinManager.savePin(pin)
+                                pinManager.saveUserRole("user")
                                 val intent = Intent(context, PinEntryActivity::class.java)
                                 context.startActivity(intent)
                                 (context as Activity).finish()

@@ -75,8 +75,16 @@ fun ProfileScreen() {
     ) { uri: Uri? ->
         uri?.let {
             val destUri = Uri.fromFile(File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg"))
+            val options = UCrop.Options().apply {
+                setToolbarColor(androidx.core.content.ContextCompat.getColor(context, com.example.e_clinic.R.color.eclinic_teal_primary))
+                setStatusBarColor(androidx.core.content.ContextCompat.getColor(context, com.example.e_clinic.R.color.eclinic_teal_dark))
+                setToolbarWidgetColor(android.graphics.Color.WHITE)
+                setActiveControlsWidgetColor(androidx.core.content.ContextCompat.getColor(context, com.example.e_clinic.R.color.eclinic_teal_primary))
+                setToolbarTitle("Crop Profile Picture")
+            }
             val cropIntent = UCrop.of(it, destUri)
                 .withAspectRatio(1f, 1f)
+                .withOptions(options)
                 .getIntent(context)
             cropLauncher.launch(cropIntent)
         }

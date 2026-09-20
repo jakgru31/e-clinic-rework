@@ -29,31 +29,39 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       allow read: if isSignedIn() && (
+        isDoctor() ||
+        isAdmin() ||
         resource.data.user_id == request.auth.uid ||
-        resource.data.doctor_id == request.auth.uid ||
-        isAdmin());
+        resource.data.doctor_id == request.auth.uid
+      );
       allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
       allow update: if isSignedIn() && (
+        isDoctor() ||
+        isAdmin() ||
         resource.data.user_id == request.auth.uid ||
-        resource.data.doctor_id == request.auth.uid ||
-        isAdmin());
+        resource.data.doctor_id == request.auth.uid
+      );
       allow delete: if isAdmin();
     }
 
     match /medical_records/{recordId} {
-      allow read: if isSignedIn() && (
-        resource.data.user_id == request.auth.uid ||
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        isDoctor() ||
+        isAdmin() ||
+        resource == null ||
         resource.data.doctor_id == request.auth.uid ||
-        isAdmin());
-      allow write: if isDoctor() || isAdmin();
+        request.resource.data.doctor_id == request.auth.uid
+      );
     }
 
     match /prescriptions/{prescriptionId} {
-      allow read: if isSignedIn() && (
-        resource.data.user_id == request.auth.uid ||
-        resource.data.doctor_id == request.auth.uid ||
-        isAdmin());
-      allow create, update: if isDoctor() || isAdmin();
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (
+        isDoctor() ||
+        isAdmin() ||
+        request.resource.data.doctor_id == request.auth.uid
+      );
       allow delete: if isAdmin();
     }
 
@@ -63,6 +71,55 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (isDoctor() && resource.data.doctor_id == request.auth.uid)
         || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["available_slots"]));
+    }
+
+    match /chats/{chatId} {
+      allow get: if isSignedIn() && (
+        resource == null ||
+        resource.data.user_id == request.auth.uid ||
+        resource.data.doctor_id == request.auth.uid ||
+        request.auth.uid in resource.data.participants ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        request.auth.uid in resource.data.participants ||
+        resource.data.user_id == request.auth.uid ||
+        resource.data.doctor_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.user_id == request.auth.uid ||
+        request.resource.data.doctor_id == request.auth.uid ||
+        request.auth.uid in request.resource.data.participants
+      );
+      allow update: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        resource.data.doctor_id == request.auth.uid ||
+        request.auth.uid in resource.data.participants ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          (exists(/databases/$(database)/documents/chats/$(chatId)) && (
+            get(/databases/$(database)/documents/chats/$(chatId)).data.user_id == request.auth.uid ||
+            get(/databases/$(database)/documents/chats/$(chatId)).data.doctor_id == request.auth.uid ||
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          )) ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() && (
+          request.resource.data.sender_id == request.auth.uid &&
+          exists(/databases/$(database)/documents/chats/$(chatId)) &&
+          (
+            get(/databases/$(database)/documents/chats/$(chatId)).data.user_id == request.auth.uid ||
+            get(/databases/$(database)/documents/chats/$(chatId)).data.doctor_id == request.auth.uid ||
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants
+          )
+        );
+        allow update, delete: if isAdmin() || (isSignedIn() && resource.data.sender_id == request.auth.uid);
+      }
     }
   }
 }

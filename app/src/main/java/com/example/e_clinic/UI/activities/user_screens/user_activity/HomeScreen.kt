@@ -53,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.e_clinic.AIAssistant.getDailyHealthTip
+import com.example.e_clinic.AIAssistant.getInitialTip
 import com.example.e_clinic.Firebase.FirestoreDatabase.collections.Appointment
 import com.example.e_clinic.Firebase.FirestoreDatabase.collections.Doctor
 import com.example.e_clinic.Firebase.Repositories.AppointmentRepository
@@ -77,6 +78,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import kotlin.compareTo
 import kotlin.div
+import android.net.Uri
+import androidx.navigation.NavHostController
+import com.example.e_clinic.Firebase.Repositories.ChatRepository
 import kotlin.rem
 import kotlin.text.format
 import kotlin.text.get
@@ -84,23 +88,18 @@ import kotlin.text.toInt
 import kotlin.times
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavHostController? = null) {
     val scrollState = rememberScrollState()
     val user = FirebaseAuth.getInstance().currentUser
     val context = LocalContext.current
     val appointmentRepository = AppointmentRepository()
     val appointments = remember { mutableStateOf<List<Appointment>>(emptyList()) }
-    val dailyHealthTip = remember { mutableStateOf("Loading health tip...") }
+    val dailyHealthTip = remember { mutableStateOf(getInitialTip()) }
     val isLoadingTip = remember { mutableStateOf(false) }
 
-    // Load initial health tip - SAFE VERSION
+    // Load fresh health tip in background
     LaunchedEffect(Unit) {
-        try {
-            isLoadingTip.value = true
-            dailyHealthTip.value = getDailyHealthTip()
-        } finally {
-            isLoadingTip.value = false
-        }
+        dailyHealthTip.value = getDailyHealthTip()
     }
 
     // Original appointment loading logic (unchanged)
@@ -183,7 +182,7 @@ fun HomeScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        CalendarWidget(appointments.value)
+        CalendarWidget(appointments.value, navController = navController)
     }
 }
 
@@ -306,7 +305,7 @@ private suspend fun loadHealthTip(
 
 
 @Composable
-fun CalendarWidget(allAppointments: List<Appointment>) {
+fun CalendarWidget(allAppointments: List<Appointment>, navController: NavHostController? = null) {
     val context = LocalContext.current
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     val appointments = allAppointments.filter { it.user_id == currentUserId && it.status != "CANCELLED" }
@@ -333,7 +332,25 @@ fun CalendarWidget(allAppointments: List<Appointment>) {
     }.map { it.dayOfMonth }
 
     fun openChatWithDoctor(appt: Appointment) {
-        Toast.makeText(context, "Chat is temporarily disabled", Toast.LENGTH_SHORT).show()
+        val doctorId = appt.doctor_id.trim()
+        if (doctorId.isBlank()) {
+            Toast.makeText(context, "Doctor information unavailable", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentUserId.isNullOrBlank()) {
+            Toast.makeText(context, "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val chatRepository = ChatRepository()
+        chatRepository.getOrCreateChat(currentUserId, doctorId) { chat ->
+            if (chat != null) {
+                val encodedName = Uri.encode(chat.doctor_name.ifBlank { "Doctor" })
+                navController?.navigate("chat_room/${chat.id}/$doctorId/$encodedName")
+            } else {
+                Toast.makeText(context, "Unable to start chat. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Box(

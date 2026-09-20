@@ -37,17 +37,14 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
-
-
-// Assuming PrescribeScreen is defined elsewhere and imported correctly
-// Make sure you have this import. Example:
-// import com.example.e_clinic.ui.activities.doctor_screens.PrescribeScreen
-
+import android.net.Uri
+import androidx.navigation.NavHostController
+import com.example.e_clinic.Firebase.Repositories.ChatRepository
 
 private const val TAG = "DoctorAppointments"
 
 @Composable
-fun AppointmentsScreen(doctorId: String) {
+fun AppointmentsScreen(doctorId: String, navController: NavHostController? = null) {
     Log.d(TAG, "AppointmentsScreen loaded with doctorId: $doctorId")
     val context = LocalContext.current
     var selectedTab by rememberSaveable { mutableStateOf(0) }
@@ -101,9 +98,26 @@ fun AppointmentsScreen(doctorId: String) {
         Log.d(TAG, "Initializing appointments screen")
     }
 
-    // Keep existing openChatWithPatient function as is
     fun openChatWithPatient(appt: Appointment) {
-        Toast.makeText(context, "Chat is temporarily disabled", Toast.LENGTH_SHORT).show()
+        val patientId = appt.user_id.trim()
+        if (patientId.isBlank()) {
+            Toast.makeText(context, "Patient information unavailable", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val currentDoctorId = doctorState.value ?: doctorId
+        if (currentDoctorId.isBlank()) {
+            Toast.makeText(context, "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val chatRepository = ChatRepository()
+        chatRepository.getOrCreateChat(patientId, currentDoctorId) { chat ->
+            if (chat != null) {
+                val encodedName = Uri.encode(chat.user_name.ifBlank { "Patient" })
+                navController?.navigate("chat_room/${chat.id}/$patientId/$encodedName")
+            } else {
+                Toast.makeText(context, "Unable to start chat. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // Function to complete the appointment (renamed slightly for clarity)

@@ -38,6 +38,9 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.sharp.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.draw.clip
+import android.net.Uri
+import androidx.navigation.NavHostController
+import com.example.e_clinic.Firebase.Repositories.ChatRepository
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
@@ -383,7 +386,11 @@ fun Date.formatTime(): String {
 
 
 @Composable
-fun AppointmentsScreen(userId: String, onAppointmentMade: () -> Unit) {
+fun AppointmentsScreen(
+    userId: String,
+    navController: NavHostController? = null,
+    onAppointmentMade: () -> Unit
+) {
     val context = LocalContext.current
     var showBookingForm by rememberSaveable { mutableStateOf(false) }
     var selectedTab by rememberSaveable { mutableStateOf(0) }
@@ -401,7 +408,25 @@ fun AppointmentsScreen(userId: String, onAppointmentMade: () -> Unit) {
 
     // Function to open chat with the doctor
     fun openChatWithDoctor(appt: Appointment) {
-        Toast.makeText(context, "Chat is temporarily disabled", Toast.LENGTH_SHORT).show()
+        val doctorId = appt.doctor_id.trim()
+        if (doctorId.isBlank()) {
+            Toast.makeText(context, "Doctor information unavailable", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentUserId.isNullOrBlank()) {
+            Toast.makeText(context, "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val chatRepository = ChatRepository()
+        chatRepository.getOrCreateChat(currentUserId, doctorId) { chat ->
+            if (chat != null) {
+                val encodedName = Uri.encode(chat.doctor_name.ifBlank { "Doctor" })
+                navController?.navigate("chat_room/${chat.id}/$doctorId/$encodedName")
+            } else {
+                Toast.makeText(context, "Unable to start chat. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     // Function to cancel the appointment
     fun cancel(appointment: Appointment) {

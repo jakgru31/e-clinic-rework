@@ -9,15 +9,12 @@
 
     <!-- Required for video/audio calls -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Optional but recommended -->
     <uses-permission android:name="android.permission.BLUETOOTH" /> <!-- For Bluetooth headsets -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- For call notifications -->
 
     <!-- Declare hardware features (optional but prevents Play Store filtering) -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -59,7 +56,7 @@
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+            android:theme="@style/Theme.EClinic.UCrop"/>
 
         <activity android:name=".UI.activities.user_screens.user_activity.UpdateUserDataActivity" />
         <!-- <activity

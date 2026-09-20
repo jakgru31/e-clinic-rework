@@ -98,6 +98,7 @@ fun SetDoctorPinAfterLoginScreen() {
                                 if (confirmPin.length == 4) {
                                     if (pin == confirmPin) {
                                         pinManager.savePin(pin)
+                                        pinManager.saveUserRole("doctor")
                                         val intent = Intent(context, DoctorPinEntryActivity::class.java)
                                         context.startActivity(intent)
                                         (context as Activity).finish()
@@ -127,7 +128,8 @@ fun SetDoctorPinAfterLoginScreen() {
                         if (confirmPin.length == 4) {
                             if (pin == confirmPin) {
                                 pinManager.savePin(pin)
-                                val intent = Intent(context, PinEntryActivity::class.java)
+                                pinManager.saveUserRole("doctor")
+                                val intent = Intent(context, DoctorPinEntryActivity::class.java)
                                 context.startActivity(intent)
                                 (context as Activity).finish()
                             } else {

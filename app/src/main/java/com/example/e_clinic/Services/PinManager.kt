@@ -31,8 +31,19 @@ class PinManager(context: Context) {
         return savedPin != null && savedPin == inputPin
     }
 
+    fun saveUserRole(role: String) {
+        sharedPreferences.edit { putString("user_role", role) }
+    }
+
+    fun getUserRole(): String? {
+        return sharedPreferences.getString("user_role", null)
+    }
+
     fun clearPin() {
-        sharedPreferences.edit { remove("pin") }
+        sharedPreferences.edit {
+            remove("pin")
+            remove("user_role")
+        }
     }
 
 
