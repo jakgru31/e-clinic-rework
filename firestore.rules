@@ -29,39 +29,37 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       allow read: if isSignedIn() && (
-        isDoctor() ||
-        isAdmin() ||
         resource.data.user_id == request.auth.uid ||
-        resource.data.doctor_id == request.auth.uid
-      );
+        resource.data.doctor_id == request.auth.uid ||
+        isAdmin());
       allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
       allow update: if isSignedIn() && (
-        isDoctor() ||
-        isAdmin() ||
         resource.data.user_id == request.auth.uid ||
-        resource.data.doctor_id == request.auth.uid
-      );
+        resource.data.doctor_id == request.auth.uid ||
+        isAdmin());
       allow delete: if isAdmin();
     }
 
     match /medical_records/{recordId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && (
-        isDoctor() ||
-        isAdmin() ||
-        resource == null ||
+      allow read: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
         resource.data.doctor_id == request.auth.uid ||
-        request.resource.data.doctor_id == request.auth.uid
-      );
+        isAdmin());
+      allow create: if isSignedIn() && (isDoctor() || isAdmin())
+        && request.resource.data.doctor_id == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.doctor_id == request.auth.uid ||
+        isAdmin());
+      allow delete: if isAdmin();
     }
 
     match /prescriptions/{prescriptionId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && (
-        isDoctor() ||
-        isAdmin() ||
-        request.resource.data.doctor_id == request.auth.uid
-      );
+      allow read: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        resource.data.doctor_id == request.auth.uid ||
+        isAdmin());
+      allow create, update: if isSignedIn() && (isDoctor() || isAdmin())
+        && request.resource.data.doctor_id == request.auth.uid;
       allow delete: if isAdmin();
     }
 

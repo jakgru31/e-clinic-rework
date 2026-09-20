@@ -724,6 +724,7 @@ fun AppointmentCard(
                             FirebaseFirestore.getInstance()
                                 .collection("medical_records")
                                 .whereEqualTo("appointment_id", appointment.id)
+                                .whereEqualTo("doctor_id", FirebaseAuth.getInstance().currentUser?.uid)
                                 .get()
                                 .addOnSuccessListener { result ->
                                     if (!result.isEmpty) {
