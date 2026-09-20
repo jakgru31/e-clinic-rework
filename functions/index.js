@@ -1,4 +1,5 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -109,6 +110,7 @@ exports.notifyDoctorOfCanceledFutureAppointment = onSchedule(
           const userName = userSnap.exists ? userSnap.data().name || 'Unknown Patient' : 'Unknown Patient';
 
           const appointmentDate = appointment.date.toDate().toLocaleString('pl-PL', {
+            timeZone: 'Europe/Warsaw',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -126,7 +128,8 @@ exports.notifyDoctorOfCanceledFutureAppointment = onSchedule(
               type: 'cancel_notification',
               appointmentId: doc.id,
               patientName: userName,
-              appointmentDate: appointmentDate
+              appointmentDate: appointmentDate,
+              appointmentTimestamp: String(appointment.date.toMillis())
             },
             android: {
               priority: 'high'
@@ -191,6 +194,7 @@ exports.sendUserAppointmentReminders = onSchedule(
           }
 
           const appointmentDate = appointment.date.toDate().toLocaleString('pl-PL', {
+            timeZone: 'Europe/Warsaw',
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
@@ -208,6 +212,7 @@ exports.sendUserAppointmentReminders = onSchedule(
               type: 'user_appointment_reminder',
               appointmentId: doc.id,
               appointmentDate,
+              appointmentTimestamp: String(appointment.date.toMillis()),
               dayType: label,
             },
             android: {
@@ -273,3 +278,95 @@ exports.cleanupOldTimeSlots = onSchedule(
     }
   }
 );
+
+// 🔔 Function 5: Notify recipient when a new chat message is sent
+exports.sendChatNotification = onDocumentCreated('chats/{chatId}/messages/{messageId}', async (event) => {
+  const messageData = event.data?.data();
+  if (!messageData) return;
+
+  const chatId = event.params.chatId;
+  const senderId = messageData.sender_id;
+  const text = messageData.text || (messageData.image_url ? '📷 Photo' : 'Sent a message');
+
+  try {
+    // 1. Get the parent chat to find the participants and their names
+    const chatDoc = await db.collection('chats').doc(chatId).get();
+    if (!chatDoc.exists) return;
+
+    const chatData = chatDoc.data();
+    const participants = chatData.participants || [];
+    // The recipient is the other participant
+    const recipientId = participants.find(id => id !== senderId);
+    if (!recipientId) return;
+
+    // Determine the sender's actual display name (Name + Surname)
+    let senderName = messageData.sender_name;
+    if (senderId === chatData.doctor_id && chatData.doctor_name) {
+      senderName = chatData.doctor_name;
+    } else if (senderId === chatData.user_id && chatData.user_name) {
+      senderName = chatData.user_name;
+    }
+
+    // If still missing, contains '@', or has a period/email format, fetch from Firestore directly
+    if (!senderName || senderName === 'User' || senderName.includes('@') || senderName.includes('.')) {
+      const doctorDoc = await db.collection('doctors').doc(senderId).get();
+      if (doctorDoc.exists) {
+        const d = doctorDoc.data();
+        senderName = `Dr. ${d.name || ''} ${d.surname || ''}`.trim();
+      } else {
+        const userDoc = await db.collection('users').doc(senderId).get();
+        if (userDoc.exists) {
+          const u = userDoc.data();
+          senderName = `${u.name || ''} ${u.surname || ''}`.trim();
+        }
+      }
+    }
+    if (!senderName) senderName = 'New Message';
+
+    // 2. Lookup recipient's FCM token (check users, then doctors)
+    let fcmToken = null;
+    let isDoctor = false;
+
+    const userDoc = await db.collection('users').doc(recipientId).get();
+    if (userDoc.exists && userDoc.data()?.fcmToken) {
+      fcmToken = userDoc.data().fcmToken;
+    } else {
+      const doctorDoc = await db.collection('doctors').doc(recipientId).get();
+      if (doctorDoc.exists && doctorDoc.data()?.fcmToken) {
+        fcmToken = doctorDoc.data().fcmToken;
+        isDoctor = true;
+      }
+    }
+
+    if (!fcmToken) {
+      logger.warn(`No FCM token found for recipient ${recipientId}`);
+      return;
+    }
+
+    // 3. Dispatch the high-priority push notification
+    const payload = {
+      token: fcmToken,
+      notification: {
+        title: senderName,
+        body: text,
+      },
+      data: {
+        type: 'chat_message',
+        chatId: chatId,
+        senderId: senderId,
+        senderName: senderName,
+        isDoctor: isDoctor ? 'true' : 'false',
+        text: text,
+        timestamp: String(messageData.timestamp ? messageData.timestamp.toMillis() : Date.now()),
+      },
+      android: {
+        priority: 'high',
+      },
+    };
+
+    await getMessaging().send(payload);
+    logger.log(`Chat notification sent to ${recipientId} from ${senderName}`);
+  } catch (error) {
+    logger.error('Error sending chat notification:', error);
+  }
+});

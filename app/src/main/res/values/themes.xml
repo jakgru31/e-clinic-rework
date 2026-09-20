@@ -3,9 +3,18 @@
     <!-- Base application theme -->
     <style name="Theme.EClinic" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Your existing theme attributes -->
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorPrimary">@color/eclinic_teal_primary</item>
+        <item name="colorPrimaryVariant">@color/eclinic_teal_dark</item>
         <item name="colorOnPrimary">@color/white</item>
         <!-- Add other theme attributes as needed -->
+    </style>
+
+    <!-- Theme for UCropActivity to ensure toolbar does not overlap status/notification bar -->
+    <style name="Theme.EClinic.UCrop" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@color/eclinic_teal_dark</item>
+        <item name="colorPrimary">@color/eclinic_teal_primary</item>
+        <item name="colorPrimaryDark">@color/eclinic_teal_dark</item>
     </style>
 </resources>

@@ -146,45 +146,62 @@ fun MainScreen() {
 
 @Composable
 fun AdminBottomNavigationBar(navController: NavController) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .shadow(16.dp, RoundedCornerShape(32.dp), clip = false) // Adjusted shadow elevation
-            .background(MaterialTheme.colorScheme.primary) // Slightly more opaque or adjust as needed
+    NavigationBar(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 4.dp
     ) {
-        NavigationBar(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
-        ) {
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        imageVector = Icons.Filled.MedicalServices,
-                        contentDescription = "Doctors"
-                    )
-                },
-                label = { Text("Doctors") },
-                selected = navController.currentDestination?.route == "doctors",
-                onClick = { if (navController.currentDestination?.route != "doctors")
-                    navController.navigate("doctors") },
-                alwaysShowLabel = true
+        val currentRoute = navController.currentDestination?.route
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.MedicalServices,
+                    contentDescription = "Doctors"
+                )
+            },
+            label = { Text("Doctors") },
+            selected = currentRoute == "doctors",
+            onClick = {
+                if (currentRoute != "doctors") {
+                    navController.navigate("doctors") {
+                        popUpTo("doctors") { inclusive = true }
+                    }
+                }
+            },
+            alwaysShowLabel = true,
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.primary,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        imageVector = Icons.Filled.People,
-                        contentDescription = "Patients"
-                    )
-                },
-                label = { Text("Patients") },
-                selected = navController.currentDestination?.route == "patients",
-                onClick = { if (navController.currentDestination?.route != "patients")
-                    navController.navigate("patients") },
-                alwaysShowLabel = true
+        )
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.People,
+                    contentDescription = "Patients"
+                )
+            },
+            label = { Text("Patients") },
+            selected = currentRoute == "patients",
+            onClick = {
+                if (currentRoute != "patients") {
+                    navController.navigate("patients") {
+                        popUpTo("doctors")
+                    }
+                }
+            },
+            alwaysShowLabel = true,
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.primary,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
+        )
     }
 }
 
@@ -200,7 +217,7 @@ fun SetupNavHost(navController: NavHostController, modifier: Modifier = Modifier
         composable("profile") { AdminProfileLoader(onProfilePictureChanged, navController) }
         composable("admin_data_update/{adminId}") { backStackEntry ->
             val adminId = backStackEntry.arguments?.getString("adminId") ?: ""
-            AdminDataUpdateScreen(id = adminId)
+            AdminDataUpdateScreen(id = adminId, onBack = { navController.popBackStack() })
         }
     }
 }
@@ -234,12 +251,15 @@ fun AdminProfileLoader(onProfilePictureChanged: () -> Unit, navController: NavCo
     }
 
     when {
-        isLoading -> CircularProgressIndicator()
-        error != null -> Text("Error: $error")
-        admin != null -> ProfileScreen(admin!!, onProfilePictureChanged = onProfilePictureChanged, navController = navController)
-        else -> Text("No administrator data found")
-    }
-    if (admin != null) {
-        ProfileScreen(admin!!, navController, onProfilePictureChanged)
+        isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
+        error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Error: $error", color = MaterialTheme.colorScheme.error)
+        }
+        admin != null -> ProfileScreen(admin!!, navController = navController, onProfilePictureChanged = onProfilePictureChanged)
+        else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No administrator data found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

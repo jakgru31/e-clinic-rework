@@ -52,6 +52,11 @@ import com.example.e_clinic.Firebase.Repositories.AppointmentRepository
 import com.example.e_clinic.UI.activities.doctor_screens.doctor_activity.DoctorProfileScreen
 
 import com.google.firebase.Timestamp
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.e_clinic.UI.activities.chat.ChatListScreen
+import com.example.e_clinic.UI.activities.chat.ChatScreen
 import com.example.e_clinic.UI.activities.user_screens.user_activity.ChatPlaceholderScreen
 
 
@@ -373,23 +378,54 @@ fun MainScreen() {
 @Composable
 fun NavigationHost(navController: NavHostController, modifier: Modifier, doctor: Doctor, userId: String) {
     NavHost(navController = navController, startDestination = "home", modifier = modifier) {
-        composable("home") { HomeScreen() }
+        composable("home") { HomeScreen(navController = navController) }
 
         // Unified appointments route
         composable("appointments/{doctorId}") { backStackEntry ->
             val doctorId = backStackEntry.arguments?.getString("doctorId") ?: userId
-            AppointmentsScreen(doctorId = doctorId)
+            AppointmentsScreen(doctorId = doctorId, navController = navController)
         }
 
         // Fallback route if no ID needed
         composable("appointments") {
-            AppointmentsScreen(doctorId = userId)
+            AppointmentsScreen(doctorId = userId, navController = navController)
         }
 
         composable("services") { ServicesScreen(navController) }
         composable("prescriptions") { PrescribeScreen() }
         composable("profile") { DoctorProfileScreen() }
-        composable("chat") { ChatPlaceholderScreen() }
+
+        composable("chat") {
+            ChatListScreen(
+                currentUserId = userId,
+                isDoctor = true,
+                onOpenChat = { chatId, otherUserId, otherUserName, _ ->
+                    val encodedName = Uri.encode(otherUserName)
+                    navController.navigate("chat_room/$chatId/$otherUserId/$encodedName")
+                }
+            )
+        }
+
+        composable(
+            route = "chat_room/{chatId}/{otherUserId}/{otherUserName}",
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.StringType },
+                navArgument("otherUserId") { type = NavType.StringType },
+                navArgument("otherUserName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: ""
+            val rawName = backStackEntry.arguments?.getString("otherUserName") ?: ""
+            val otherUserName = Uri.decode(rawName)
+            ChatScreen(
+                chatId = chatId,
+                currentUserId = userId,
+                otherUserId = otherUserId,
+                otherUserName = otherUserName,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
         composable("prescribe/{fromCalendar}/{patientId}") { backStackEntry ->
             val fromCalendar = backStackEntry.arguments?.getString("fromCalendar")?.toBoolean() ?: false

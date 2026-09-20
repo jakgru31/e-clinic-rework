@@ -15,9 +15,9 @@ val localProperties = Properties().apply {
     }
 }
 
-val appID = localProperties["APP_ID"]
-val appSign = localProperties["APP_SIGN"]
-val apiKey = localProperties["GEMINI_API_KEY"]
+val appID = localProperties.getProperty("APP_ID", "")
+val appSign = localProperties.getProperty("APP_SIGN", "")
+val apiKey = localProperties.getProperty("GEMINI_API_KEY", "")
 
 android {
     namespace = "com.example.e_clinic"
@@ -156,7 +156,6 @@ dependencies {
 
 
     // implementation ("com.github.ZEGOCLOUD:zego_uikit_prebuilt_call_android:+")
-    // implementation(project(":zimkit"))
 
     //implementation("com.google.ai.client:generativeai:0.3.1") // проверь последнюю доступную версию
 

@@ -59,16 +59,90 @@ class LogInActivity : ComponentActivity() {
 }
 
 
+private fun navigateToPinEntry(
+    context: android.content.Context,
+    user: com.google.firebase.auth.FirebaseUser,
+    pinManager: PinManager
+) {
+    val cachedRole = pinManager.getUserRole()
+    if (cachedRole != null) {
+        val intent = when (cachedRole) {
+            "admin" -> Intent(context, AdminPinEntryActivity::class.java)
+            "doctor" -> Intent(context, DoctorPinEntryActivity::class.java)
+            else -> Intent(context, PinEntryActivity::class.java)
+        }
+        context.startActivity(intent)
+        (context as? Activity)?.finish()
+        return
+    }
+
+    val email = user.email ?: ""
+    val db = FirebaseFirestore.getInstance()
+
+    db.collection("administrators").whereEqualTo("email", email).get()
+        .addOnSuccessListener { adminDocs ->
+            if (!adminDocs.isEmpty) {
+                pinManager.saveUserRole("admin")
+                val intent = Intent(context, AdminPinEntryActivity::class.java)
+                context.startActivity(intent)
+                (context as? Activity)?.finish()
+            } else {
+                db.collection("doctors").whereEqualTo("e-mail", email).get()
+                    .addOnSuccessListener { doctorDocs ->
+                        if (!doctorDocs.isEmpty) {
+                            pinManager.saveUserRole("doctor")
+                            val intent = Intent(context, DoctorPinEntryActivity::class.java)
+                            context.startActivity(intent)
+                            (context as? Activity)?.finish()
+                        } else {
+                            db.collection("doctors").whereEqualTo("email", email).get()
+                                .addOnSuccessListener { doctorDocs2 ->
+                                    if (!doctorDocs2.isEmpty) {
+                                        pinManager.saveUserRole("doctor")
+                                        val intent = Intent(context, DoctorPinEntryActivity::class.java)
+                                        context.startActivity(intent)
+                                        (context as? Activity)?.finish()
+                                    } else {
+                                        pinManager.saveUserRole("user")
+                                        val intent = Intent(context, PinEntryActivity::class.java)
+                                        context.startActivity(intent)
+                                        (context as? Activity)?.finish()
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    pinManager.saveUserRole("user")
+                                    val intent = Intent(context, PinEntryActivity::class.java)
+                                    context.startActivity(intent)
+                                    (context as? Activity)?.finish()
+                                }
+                        }
+                    }
+                    .addOnFailureListener {
+                        pinManager.saveUserRole("user")
+                        val intent = Intent(context, PinEntryActivity::class.java)
+                        context.startActivity(intent)
+                        (context as? Activity)?.finish()
+                    }
+            }
+        }
+        .addOnFailureListener {
+            pinManager.saveUserRole("user")
+            val intent = Intent(context, PinEntryActivity::class.java)
+            context.startActivity(intent)
+            (context as? Activity)?.finish()
+        }
+}
+
 @Composable
 fun LogInScreen(
     onSignUpClick: () -> Unit,
-
 ) {
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
-    val currentUser = auth.currentUser
+    var currentUser by remember { mutableStateOf(auth.currentUser) }
+    var isCheckingAuth by remember { mutableStateOf(auth.currentUser == null) }
+    val pinManager = remember { PinManager(context) }
     var isLoading by remember { mutableStateOf(false) }
-    val pinManager = PinManager(context)
     var showResetPassword by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -76,58 +150,91 @@ fun LogInScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var showPinEntry by remember { mutableStateOf(false) }
 
-    if (currentUser != null && pinManager.getPin() != null && !showPinEntry) {
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { fbAuth ->
+            currentUser = fbAuth.currentUser
+            isCheckingAuth = false
+        }
+        auth.addAuthStateListener(listener)
+        onDispose {
+            auth.removeAuthStateListener(listener)
+        }
+    }
+
+    if (isCheckingAuth) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Card(
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                modifier = Modifier
-                    .widthIn(min = 320.dp, max = 400.dp)
-                    .padding(16.dp)
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (currentUser != null && pinManager.getPin() != null) {
+        if (showPinEntry) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                CircularProgressIndicator()
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    modifier = Modifier
+                        .widthIn(min = 320.dp, max = 400.dp)
+                        .padding(16.dp)
                 ) {
-                    Text(
-                        text = "eClinic",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "Welcome Back",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-                    Button(
-                        onClick = { showPinEntry = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Sign In")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            auth.signOut()
-                            context.startActivity(Intent(context, LogInActivity::class.java))
-                            (context as? ComponentActivity)?.finish()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                    ) {
-                        Text("Sign Out", color = Color.White)
+                        Text(
+                            text = "eClinic",
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = "Welcome Back",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        )
+                        Button(
+                            onClick = {
+                                showPinEntry = true
+                                navigateToPinEntry(context, currentUser!!, pinManager)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text("Continue")
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                auth.signOut()
+                                pinManager.clearPin()
+                                context.startActivity(Intent(context, LogInActivity::class.java))
+                                (context as? ComponentActivity)?.finish()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                        ) {
+                            Text("Sign Out", color = Color.White)
+                        }
                     }
                 }
             }
-
         }
         if (errorMessage != null) {
             AlertDialog(
@@ -159,6 +266,7 @@ fun LogInScreen(
                                     FirebaseFirestore.getInstance().collection("users")
                                         .document(user.uid).get()
                                         .addOnSuccessListener { doc ->
+                                            pinManager.saveUserRole("user")
                                             val intent = if (doc.getBoolean("hasSetPin") == true) {
                                                 Intent(context, PinEntryActivity::class.java)
                                             } else {
@@ -289,6 +397,7 @@ fun LogInScreen(
                                                     .get()
                                                     .addOnSuccessListener { adminDocs ->
                                                         if (!adminDocs.isEmpty) {
+                                                            pinManager.saveUserRole("admin")
                                                             val intent = if (pinManager.getPin() != null) {
                                                                 Intent(context, AdminPinEntryActivity::class.java)
                                                             } else {
@@ -303,6 +412,7 @@ fun LogInScreen(
                                                                 .get()
                                                                 .addOnSuccessListener { doctorDocs ->
                                                                     if (!doctorDocs.isEmpty) {
+                                                                        pinManager.saveUserRole("doctor")
                                                                         val intent = if (pinManager.getPin() != null) {
                                                                             Intent(context, DoctorPinEntryActivity::class.java)
                                                                         } else {
@@ -317,6 +427,7 @@ fun LogInScreen(
                                                                             .get()
                                                                             .addOnSuccessListener { doctorDocs2 ->
                                                                                 if (!doctorDocs2.isEmpty) {
+                                                                                    pinManager.saveUserRole("doctor")
                                                                                     val intent = if (pinManager.getPin() != null) {
                                                                                         Intent(context, DoctorPinEntryActivity::class.java)
                                                                                     } else {
@@ -326,6 +437,7 @@ fun LogInScreen(
                                                                                     (context as? Activity)?.finish()
                                                                                 } else {
                                                                                     // Default: User/Patient
+                                                                                    pinManager.saveUserRole("user")
                                                                                     val intent = if (pinManager.getPin() != null) {
                                                                                         Intent(context, PinEntryActivity::class.java)
                                                                                     } else {
@@ -444,51 +556,4 @@ fun LogInScreen(
                     onDismiss = { showResetPassword = false },
                 )
             }
-            if (showPinEntry) {
-                val auth = FirebaseAuth.getInstance()
-                val currentUser = auth.currentUser
-                val db = FirebaseFirestore.getInstance()
-                val pinManager = PinManager(context)
-
-                if (currentUser != null) {
-                    val email = currentUser.email ?: ""
-
-                    // Check admin by UID or email
-                    db.collection("administrators").whereEqualTo("email", email).get()
-                        .addOnSuccessListener { adminDocs ->
-                            if (!adminDocs.isEmpty) {
-                                val intent = Intent(context, AdminPinEntryActivity::class.java)
-                                context.startActivity(intent)
-                                (context as? ComponentActivity)?.finish()
-                            } else {
-                                // Check doctor by email (try both "e-mail" and "email")
-                                db.collection("doctors").whereEqualTo("e-mail", email).get()
-                                    .addOnSuccessListener { doctorDocs ->
-                                        if (!doctorDocs.isEmpty) {
-                                            val intent = Intent(context, DoctorPinEntryActivity::class.java)
-                                            context.startActivity(intent)
-                                            (context as? ComponentActivity)?.finish()
-                                        } else {
-                                            db.collection("doctors").whereEqualTo("email", email).get()
-                                                .addOnSuccessListener { doctorDocs2 ->
-                                                    if (!doctorDocs2.isEmpty) {
-                                                        val intent = Intent(context, DoctorPinEntryActivity::class.java)
-                                                        context.startActivity(intent)
-                                                        (context as? ComponentActivity)?.finish()
-                                                    } else {
-                                                        // Default: User/Patient
-                                                        val intent = Intent(context, PinEntryActivity::class.java)
-                                                        context.startActivity(intent)
-                                                        (context as? ComponentActivity)?.finish()
-                                                    }
-                                                }
-                                        }
-                                    }
-                            }
-                        }
-                    return
-                }
-
-        }
-
 }

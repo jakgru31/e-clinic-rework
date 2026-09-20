@@ -14,53 +14,20 @@ import com.example.e_clinic.UI.theme.EClinicDarkTheme
 import com.example.e_clinic.UI.theme.EClinicLightTheme
 
 
-// Define your primary colors
-val DarkBlue = Color(0xFF0D1B2A)  // Elegant dark blue
-val Blue = Color(0xFF1B263B)      // Deep blue
-val LightBlue = Color(0xFF415A77) // Soft blue
-val White = Color(0xFFFFFFFF)      // Pure white
-val Black = Color(0xFF000000)      // Black
-
-private val DarkColorScheme = darkColorScheme(
-    primary = DarkBlue,
-    secondary = Blue,
-    tertiary = LightBlue,
-    background = Black,
-    surface = DarkBlue,
-    onPrimary = White,
-    onSecondary = White,
-    onTertiary = White,
-    onBackground = White,
-    onSurface = White,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Blue,
-    secondary = LightBlue,
-    tertiary = DarkBlue,
-    background = White,
-    surface = LightBlue,
-    onPrimary = Black,
-    onSecondary = Black,
-    onTertiary = Black,
-    onBackground = Black,
-    onSurface = Black,
-)
+// Base color definitions for clinic brand
+val DarkBlue = Color(0xFF0D1B2A)
+val Blue = Color(0xFF006A60)
+val LightBlue = Color(0xFF74F8E5)
+val White = Color(0xFFFFFFFF)
+val Black = Color(0xFF000000)
 
 @Composable
 fun EClinicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Default to false for unified brand identity
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) EClinicDarkTheme else EClinicLightTheme
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) EClinicDarkTheme else EClinicLightTheme
 
     MaterialTheme(
         colorScheme = colorScheme,

@@ -163,6 +163,7 @@ fun AiAssistantChatScreen(
 }
 
 suspend fun interpretUserIntentWithAI(input: String): Boolean {
+    if (BuildConfig.GEMINI_API_KEY.isBlank()) return false
     val modelPrompt = """
         You are an intelligent assistant helping schedule medical appointments.
         The user said: "$input"
@@ -170,7 +171,7 @@ suspend fun interpretUserIntentWithAI(input: String): Boolean {
     """.trimIndent()
 
     return try {
-        val model = GenerativeModel("gemini-1.5-flash", BuildConfig.GEMINI_API_KEY)
+        val model = GenerativeModel("gemini-3.5-flash-lite", BuildConfig.GEMINI_API_KEY)
         val response = model.generateContent(modelPrompt).text.orEmpty().lowercase(Locale.getDefault()).trim()
         response.contains("yes")
     } catch (e: Exception) {
@@ -179,6 +180,9 @@ suspend fun interpretUserIntentWithAI(input: String): Boolean {
 }
 
 private suspend fun generateSpecializationSuggestions(prompt: String): List<String> {
+    if (BuildConfig.GEMINI_API_KEY.isBlank()) {
+        return listOf("Error: GEMINI_API_KEY is missing or empty in local.properties")
+    }
     val modelPrompt = """
         You are an AI medical assistant.
         Suggest up to three relevant specialisations (with short reason) from: ${DoctorSpecialization.values().joinToString { it.displayName }}.
@@ -186,7 +190,7 @@ private suspend fun generateSpecializationSuggestions(prompt: String): List<Stri
     """.trimIndent()
 
     return try {
-        val model = GenerativeModel("gemini-1.5-flash", BuildConfig.GEMINI_API_KEY)
+        val model = GenerativeModel("gemini-3.5-flash-lite", BuildConfig.GEMINI_API_KEY)
         model.generateContent(modelPrompt).text.orEmpty()
             .lineSequence()
             .map { it.replace(Regex("^\\d+\\.\\s*|^-\\s*|\\*\\s*"), "").trim() }

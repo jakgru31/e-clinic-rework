@@ -58,11 +58,12 @@ import java.text.SimpleDateFormat // Make sure you import SimpleDateFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.foundation.lazy.items
-// Assuming PrescribeScreen is defined elsewhere and imported correctly
-// import com.example.e_clinic.ui.activities.doctor_screens.PrescribeScreen // Example Import
+import android.net.Uri
+import androidx.navigation.NavHostController
+import com.example.e_clinic.Firebase.Repositories.ChatRepository
 
 @Composable
-fun HomeScreen(){
+fun HomeScreen(navController: NavHostController? = null){
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
@@ -207,7 +208,25 @@ fun HomeScreen(){
     }
     }
     fun openChatWithPatient(appt: Appointment) {
-        Toast.makeText(context, "Chat is temporarily disabled", Toast.LENGTH_SHORT).show()
+        val patientId = appt.user_id.trim()
+        if (patientId.isBlank()) {
+            Toast.makeText(context, "Patient information unavailable", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val doctorId = FirebaseAuth.getInstance().currentUser?.uid
+        if (doctorId.isNullOrBlank()) {
+            Toast.makeText(context, "Please log in first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val chatRepository = ChatRepository()
+        chatRepository.getOrCreateChat(patientId, doctorId) { chat ->
+            if (chat != null) {
+                val encodedName = Uri.encode(chat.user_name.ifBlank { "Patient" })
+                navController?.navigate("chat_room/${chat.id}/$patientId/$encodedName")
+            } else {
+                Toast.makeText(context, "Unable to start chat. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun finishAppointmentWithComments(appointment: Appointment, comments: String = "") {
